@@ -1,0 +1,388 @@
+# Description:Case 9 - Geochemistry
+#========================= restart options =========================
+
+SIMULATION
+  SIMULATION_TYPE SUBSURFACE
+  PROCESS_MODELS
+#  SUBSURFACE_FLOW flow
+#  MODE RICHARDS
+#  /
+    SUBSURFACE_TRANSPORT transport
+      GLOBAL_IMPLICIT
+    /
+  /
+CHECKPOINT 1000
+END
+END
+
+SUBSURFACE
+
+#========================= flow mode =========================
+NONUNIFORM_VELOCITY velocity_fracture.h5
+#========================= fluid properties =========================
+FLUID_PROPERTY
+  DIFFUSION_COEFFICIENT 1d-9
+END
+#========================= solver options =========================
+NEWTON_SOLVER TRANSPORT
+  ATOL 1D-12
+  RTOL 1D-12
+  STOL 1D-30
+  DTOL 1.D10
+  ITOL 1D-12
+  MAXIT 50
+  MAXF 100
+  MAX_NORM 1D4
+END
+TIMESTEPPER flow
+INITIALIZE_TO_STEADY_STATE
+RUN_AS_STEADY_STATE
+END
+#========================= discretization =========================
+GRID
+  TYPE structured
+  ORIGIN 0.0 0.0 0.0
+  NXYZ 1 316 252
+  BOUNDS
+      0.0 0.0 0.0
+      1.6e-3 0.5 0.1
+    /
+#  DXYZ
+#      1@1.6e-3
+#      316@1.58e-3
+#      63@1.58e-3
+#    /
+END
+#========================= material properties =========================
+
+MATERIAL_PROPERTY fracture
+  ID 1
+  POROSITY 1.0
+  LONGITUDINAL_DISPERSIVITY 0.0002
+  TORTUOSITY 1.0
+  PERMEABILITY
+
+    PERM_X  1.0-12
+    PERM_Y  1.0-12
+    PERM_Z  1.0-12
+    /
+  CHARACTERISTIC_CURVES default
+END
+
+MATERIAL_PROPERTY matrix
+  ID 2
+  POROSITY 1e-2
+  LONGITUDINAL_DISPERSIVITY 0.0002
+  TORTUOSITY 0.1
+  PERMEABILITY
+    PERM_X  2.0-30
+    PERM_Y  2.0-30
+    PERM_Z  2.0-30
+    /
+  CHARACTERISTIC_CURVES default
+END
+
+#=========================== saturation functions =============================
+CHARACTERISTIC_CURVES default
+  SATURATION_FUNCTION VAN_GENUCHTEN
+    M 0.286
+    ALPHA  1.9401d-4
+    LIQUID_RESIDUAL_SATURATION 0.115
+  /
+  PERMEABILITY_FUNCTION MUALEM_VG_LIQ
+    M 0.286
+    LIQUID_RESIDUAL_SATURATION 0.115
+  /
+END
+
+#========================= stratigraphy couplers =========================
+STRATA
+  MATERIAL fracture
+  REGION fracture
+/
+
+STRATA
+  MATERIAL matrix
+  REGION matrix
+/
+#========================= times =========================
+
+
+TIME
+  FINAL_TIME 20 d
+  INITIAL_TIMESTEP_SIZE 1.d-10 y
+  MAXIMUM_TIMESTEP_SIZE 1.e-7 y at 2.e-6 y
+  MAXIMUM_TIMESTEP_SIZE 1.e-6 y at 5.e-5 y
+  MAXIMUM_TIMESTEP_SIZE 1.e-5 y at 5.e-2 y
+  MAXIMUM_TIMESTEP_SIZE 1.e-4 y at 1.e-1 y
+  MAXIMUM_TIMESTEP_SIZE 1.e-2 y at 1.e-0 y
+  MAXIMUM_TIMESTEP_SIZE 1.e-1 y at 50.0 y
+END
+#========================= saturation functions =========================
+
+#REGION fracture
+#  COORDINATES
+#    0.0 0.0 0.0
+#    1.6e-3 0.5 1.58e-3
+#  /
+#/
+
+#REGION matrix
+#  COORDINATES
+#    0.0 0.0 1.58e-3
+#    1.6e-3 0.5 0.1
+#  /
+#/
+
+#REGION inlet
+#  COORDINATES
+#    0.0 0.0 0.0
+#    1.6e-3 0.0 1.58e-3
+#  /
+# FACE south
+#/
+
+#REGION outlet
+#  COORDINATES
+#    0.0 0.5 0.0
+#    1.6e-3 0.5 1.58e-3
+#  /
+# FACE north  
+#/
+
+REGION matrixNorthSide
+    FILE regions.h5
+END
+
+REGION matrixWestSide
+    FILE regions.h5
+END
+
+REGION matrixEastSide
+    FILE regions.h5
+END
+
+REGION matrixSouthSide
+    FILE regions.h5
+END
+
+REGION matrix
+    FILE regions.h5
+END
+
+REGION matrixTopSide
+    FILE regions.h5
+END
+
+REGION fractureWestSide
+    FILE regions.h5
+END
+
+REGION fractureEastSide
+    FILE regions.h5
+END
+
+REGION fracture
+    FILE regions.h5
+END
+
+REGION fractureSouthSide
+    FILE regions.h5
+END
+
+REGION fractureNorthSide
+    FILE regions.h5
+END
+
+REGION fractureBottomSide
+    FILE regions.h5
+END
+
+OBSERVATION outlet
+  REGION fractureNorthSide
+END  
+
+#=========================== chemistry ========================================
+CHEMISTRY
+
+  PRIMARY_SPECIES
+    Tracer
+    H+
+    HCO3-
+    Ca++
+  /
+  SECONDARY_SPECIES
+    OH-
+    CO3--
+    CO2(aq)
+    CaCO3(aq)
+    CaHCO3+
+    CaOH+
+  /
+  GAS_SPECIES
+    CO2(g)
+  /
+  MINERALS
+    Calcite
+  /
+  MINERAL_KINETICS
+    Calcite
+      RATE_CONSTANT 1.d-6
+    /
+  /
+  DATABASE hanford.dat
+  LOG_FORMULATION
+  ACTIVITY_COEFFICIENTS LAG TIMESTEP
+  MOLAL
+  OUTPUT
+    PH
+    #pe
+    #eh
+    all
+    PRIMARY_SPECIES
+    TOTAL
+    TOTAL_SORBED
+  /
+END
+  
+#=========================== constraints ======================================
+
+CONSTRAINT Chem_Ambient
+ 
+   CONCENTRATIONS
+    Tracer  1.0e-10 T
+    H+     1.d-8      F
+    HCO3-  1.d-3      G  CO2(g)
+    Ca++   5.d-4      M  Calcite
+  /
+  MINERALS
+    Calcite 1.d-5 1.d0
+  /
+END
+
+CONSTRAINT Chem_Init
+   CONCENTRATIONS
+    Tracer  1.0e-10 T
+    H+     1.d-8      F
+    HCO3-  1.d-3      G  CO2(g)
+    Ca++   5.d-4      M  Calcite
+  /
+  MINERALS
+    Calcite 1.d-5 1.d0
+  /
+END
+
+CONSTRAINT Chem_Init_fract
+   CONCENTRATIONS
+    Tracer  1.0e-10 T
+    H+     1.d-8      F
+    HCO3-  1.d-3      G  CO2(g)
+    Ca++   5.d-4      M  Calcite
+  /
+  MINERALS
+    Calcite 0 0
+  /
+END
+
+CONSTRAINT Chem_north
+   CONCENTRATIONS
+    Tracer  1.0e-10 T
+    H+     1.d-8      F
+    HCO3-  1.d-3      G  CO2(g)
+    Ca++   5.d-4      M  Calcite
+  /
+  MINERALS
+    Calcite 0 0
+  /
+END
+
+CONSTRAINT Chem_South
+   CONCENTRATIONS
+    Tracer  1.0e-0 T
+    H+     5.         P
+    HCO3-  1.d-3      T
+    Ca++   1.d-6      Z
+  /
+  MINERALS
+    Calcite 0 0
+  /
+END
+
+
+TRANSPORT_CONDITION TC_Chem_Init
+  TYPE zero_gradient
+  CONSTRAINT_LIST
+        0.0 Chem_Init
+  /
+END
+
+TRANSPORT_CONDITION TC_Chem_Init_fract
+  TYPE zero_gradient
+  CONSTRAINT_LIST
+        0.0 Chem_Init_fract
+  /
+END
+
+TRANSPORT_CONDITION TC_Chem_South
+  TYPE dirichlet_zero_gradient
+  CONSTRAINT_LIST
+    0.0 Chem_South
+    #18000.0  Chem_Init   ### 5h*3600=18000 s    
+  /
+END
+
+TRANSPORT_CONDITION TC_Chem_North
+  TYPE dirichlet_zero_gradient
+  CONSTRAINT_LIST
+    0.0 Chem_north
+    #18000.0  Chem_Init   ### 5h*3600=18000 s    
+  /
+END
+
+TRANSPORT_CONDITION TC_Chem_sides
+  TYPE dirichlet_zero_gradient
+  CONSTRAINT_LIST
+    0.0 Chem_Ambient
+  /
+END
+
+
+#========================= initial conditions =========================
+INITIAL_CONDITION
+  TRANSPORT_CONDITION TC_Chem_Init_fract
+#  FLOW_CONDITION initial
+  REGION fracture
+END
+
+INITIAL_CONDITION
+  TRANSPORT_CONDITION TC_Chem_Init
+#  FLOW_CONDITION initial
+  REGION matrix
+END
+
+#========================= boundary conditions =========================
+
+BOUNDARY_CONDITION fractureSouthSide
+#  FLOW_CONDITION inlet
+  TRANSPORT_CONDITION TC_Chem_South
+  REGION fractureSouthSide
+/
+
+BOUNDARY_CONDITION fractureNorthSide
+#  FLOW_CONDITION outlet
+  TRANSPORT_CONDITION TC_Chem_North
+  REGION fractureNorthSide
+/
+
+#========================= output options =========================
+
+OUTPUT
+  PERIODIC TIME 0.1 d
+  PERIODIC_OBSERVATION TIMESTEP 1
+  VELOCITY_AT_CENTER
+  FORMAT HDF5 
+  VARIABLES
+   POROSITY  
+  /
+END
+END_SUBSURFACE

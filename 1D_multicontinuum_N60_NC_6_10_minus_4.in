@@ -1,0 +1,230 @@
+#Description: 1D Calcite dissolution problem
+
+SIMULATION
+  SIMULATION_TYPE SUBSURFACE
+  PROCESS_MODELS
+    SUBSURFACE_TRANSPORT transport
+      GLOBAL_IMPLICIT
+    /
+  /
+END
+
+SUBSURFACE
+
+#=========================== useful tranport parameters ==================
+UNIFORM_VELOCITY 0.0010494 0.d0 0.d0 m/d
+MULTIPLE_CONTINUUM
+#=========================== chemistry ========================================
+CHEMISTRY
+  PRIMARY_SPECIES
+    Tracer
+    H+
+    HCO3-
+    Ca++
+  /
+  SECONDARY_SPECIES
+    OH-
+    CO3--
+    CO2(aq)
+    CaCO3(aq)
+    CaHCO3+
+    CaOH+
+  /
+  GAS_SPECIES
+    CO2(g)
+  /
+  MINERALS
+    Calcite
+  /
+  MINERAL_KINETICS
+    Calcite
+      RATE_CONSTANT 1.d-6
+    /
+  /
+  DATABASE ./hanford.dat
+  LOG_FORMULATION
+  ACTIVITY_COEFFICIENTS TIMESTEP
+  OUTPUT
+    PH
+    TOTAL
+    FREE_ION
+    all
+  /
+END
+
+#=========================== solver options ===================================
+NEWTON_SOLVER TRANSPORT
+  ATOL 1D-16
+  RTOL 1D-16
+  STOL 1D-30
+  MAX_NORM 1D10
+  ITOL 1D-11
+  ITOL_SEC 1D-11
+  MAXIT 100
+  MAXF 100
+END
+
+#=========================== discretization ===================================
+GRID
+  TYPE structured
+  NXYZ 200 1 1
+  BOUNDS
+    0.d0 0.d0 0.d0
+    0.5 0.005 0.005
+  /
+END
+
+#=========================== fluid properties =================================
+FLUID_PROPERTY
+  DIFFUSION_COEFFICIENT 0.0
+END
+
+#=========================== material properties ==============================
+MATERIAL_PROPERTY soil1
+  ID 1
+  POROSITY 1.0d0
+  TORTUOSITY 1.d0
+  LONGITUDINAL_DISPERSIVITY 0.0002
+  PERMEABILITY
+    PERM_X 2.03870d-07
+    PERM_Y 2.03870d-07
+    PERM_Z 2.03870d-07
+    /
+  SECONDARY_CONTINUUM
+    TYPE NESTED_CUBES
+    NUM_CELLS 60
+    MATRIX_BLOCK_SIZE 5.88d-1
+    FRACTURE_SPACING 5.91d-1
+    LOG_GRID_SPACING
+    OUTER_SPACING 6d-4
+    #APERTURE 3.16d-3
+    EPSILON 1.59d-2
+    DIFFUSION_COEFFICIENT 1.0d-10
+    POROSITY 1.0d-2
+   /    
+END
+
+#=========================== output options ===================================
+OUTPUT
+  PERIODIC TIME 0.1 d
+  PERIODIC_OBSERVATION TIMESTEP 1
+  PRINT_COLUMN_IDS
+  FORMAT HDF5
+  VELOCITY_AT_CENTER
+  VARIABLES
+	POROSITY
+	/
+END
+
+#=========================== times ============================================
+TIME
+  FINAL_TIME 20 d
+  INITIAL_TIMESTEP_SIZE 1.d-6 d
+  MAXIMUM_TIMESTEP_SIZE 1e-2 d
+END
+
+#=========================== regions ==========================================
+REGION all
+  COORDINATES
+    0.d0 0.d0 0.d0
+    0.5 0.005 0.005
+  /
+END
+
+REGION west
+  FACE WEST
+  COORDINATES
+    0.d0 0.d0 0.d0
+    0.0 0.005 0.005
+  /
+END
+
+REGION east
+  FACE EAST
+  COORDINATES
+    0.5 0.0 0.0
+    0.5 0.005 0.005
+  /
+END
+
+OBSERVATION brk
+  REGION east
+  SECONDARY_CONCENTRATION  
+END
+
+#=========================== transport conditions =============================
+TRANSPORT_CONDITION background_conc
+  TYPE zero_gradient
+  CONSTRAINT_LIST
+    0.d0 initial_constraint
+  /
+END
+
+TRANSPORT_CONDITION inlet_conc
+  TYPE dirichlet_zero_gradient
+  CONSTRAINT_LIST
+    0.d0 inlet_constraint
+  /
+END
+
+#=========================== constraints ======================================
+CONSTRAINT initial_constraint
+    CONCENTRATIONS
+    Tracer  1.e-10  T    
+    H+     1.d-8      F
+    HCO3-  1.d-3      G  CO2(g)
+    Ca++   5.d-4      M  Calcite
+  /
+  MINERALS
+    Calcite 0 0
+  /
+END
+
+CONSTRAINT inlet_constraint
+    CONCENTRATIONS
+    Tracer  1.0 T    
+    H+     5.         P
+    HCO3-  1.d-3      T
+    Ca++   1.d-6      Z
+  /
+    MINERALS
+    Calcite 0 0
+  /
+END
+
+#=========================== condition couplers ===============================
+# initial condition
+INITIAL_CONDITION
+  TRANSPORT_CONDITION background_conc
+  REGION all
+END
+
+BOUNDARY_CONDITION outlet
+  TRANSPORT_CONDITION background_conc
+  REGION east
+END
+
+BOUNDARY_CONDITION inlet
+  TRANSPORT_CONDITION inlet_conc
+  REGION west
+END
+
+#=========================== stratigraphy couplers ============================
+STRATA
+  REGION all
+  MATERIAL soil1
+END
+
+SECONDARY_CONSTRAINT sec
+    CONCENTRATIONS
+    Tracer  1.e-10  T    
+    H+     1.d-8      F
+    HCO3-  1.d-3      G  CO2(g)
+    Ca++   5.d-4      M  Calcite
+  /
+  MINERALS
+    Calcite 1.d-5 1.d0
+  /
+/
+
+END_SUBSURFACE
